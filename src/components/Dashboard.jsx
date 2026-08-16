@@ -18,7 +18,7 @@ function short(addr) {
   return addr.slice(0, 6) + '…' + addr.slice(-4)
 }
 
-export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, showToast }) {
+export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, password, showToast }) {
   const chains = [...EVM_CHAINS, BITCOIN_CHAIN]
   const [balances, setBalances] = useState({})
   const [prices, setPrices] = useState({})
@@ -204,9 +204,11 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, s
       {settingsOpen && (
         <SettingsSheet
           mnemonic={mnemonic}
+          password={password}
           onClose={() => setSettingsOpen(false)}
           onLock={onLock}
           onDeleteVault={onDeleteVault}
+          showToast={showToast}
         />
       )}
     </div>

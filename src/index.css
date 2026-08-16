@@ -436,6 +436,20 @@ p.sub {
   max-height: 88vh;
   overflow-y: auto;
 }
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.toggle-row .name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.toggle-row .hint {
+  margin-top: 2px;
+}
+
 .sheet-chain-tag {
   display: flex;
   align-items: center;

@@ -8,6 +8,7 @@ import Toast from './components/Toast'
 import { encryptSecret, decryptSecret } from './lib/crypto'
 import { hasVault, saveVault, loadVault, clearVault } from './lib/storage'
 import { deriveAllAccounts } from './lib/walletCore'
+import { unlockWithBiometric, isBiometricEnrolled, removeBiometric } from './lib/biometric'
 
 export default function App() {
   const [screen, setScreen] = useState(() => (hasVault() ? 'unlock' : 'onboarding'))
@@ -43,7 +44,7 @@ export default function App() {
     const encrypted = await encryptSecret(pendingMnemonic, password)
     saveVault(encrypted)
     const accounts = deriveAllAccounts(pendingMnemonic)
-    setSession({ mnemonic: pendingMnemonic, accounts })
+    setSession({ mnemonic: pendingMnemonic, accounts, password })
     setPendingMnemonic(null)
     setScreen('dashboard')
   }
@@ -55,7 +56,24 @@ export default function App() {
       const vault = loadVault()
       const mnemonic = await decryptSecret(vault, password)
       const accounts = deriveAllAccounts(mnemonic)
-      setSession({ mnemonic, accounts })
+      setSession({ mnemonic, accounts, password })
+      setScreen('dashboard')
+    } catch (e) {
+      setUnlockError(e.message || 'Не удалось разблокировать')
+    } finally {
+      setUnlockBusy(false)
+    }
+  }
+
+  async function handleBiometricUnlock() {
+    setUnlockBusy(true)
+    setUnlockError('')
+    try {
+      const password = await unlockWithBiometric()
+      const vault = loadVault()
+      const mnemonic = await decryptSecret(vault, password)
+      const accounts = deriveAllAccounts(mnemonic)
+      setSession({ mnemonic, accounts, password })
       setScreen('dashboard')
     } catch (e) {
       setUnlockError(e.message || 'Не удалось разблокировать')
@@ -72,6 +90,7 @@ export default function App() {
 
   function handleDeleteVault() {
     clearVault()
+    removeBiometric()
     setSession(null)
     setScreen('onboarding')
   }
@@ -115,8 +134,11 @@ export default function App() {
         {screen === 'unlock' && (
           <Unlock
             onUnlock={handleUnlock}
+            onBiometricUnlock={handleBiometricUnlock}
+            biometricEnrolled={isBiometricEnrolled()}
             onResetVault={() => {
               clearVault()
+              removeBiometric()
               setScreen('onboarding')
             }}
             error={unlockError}
@@ -128,6 +150,7 @@ export default function App() {
           <Dashboard
             accounts={session.accounts}
             mnemonic={session.mnemonic}
+            password={session.password}
             onLock={handleLock}
             onDeleteVault={handleDeleteVault}
             showToast={showToast}
