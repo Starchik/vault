@@ -407,6 +407,21 @@ p.sub {
   font-size: 14px;
   margin-top: 2px;
 }
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--text-mid);
+  font-family: var(--font-mono);
+}
+.price-up {
+  color: var(--verdigris);
+}
+.price-down {
+  color: var(--danger);
+}
 
 .section-label {
   font-size: 12px;

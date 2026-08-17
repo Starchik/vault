@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react'
-import {
-  estimateEvmFee,
-  sendEvmTransaction,
-  estimateBtcFee,
-  sendBtcTransaction,
-} from '../lib/walletCore'
+import { estimateEvmFee, sendEvmTransaction, estimateBtcFee, sendBtcTransaction } from '../lib/walletCore'
+import { estimateTokenTransferFee, sendTokenTransaction } from '../lib/tokens'
 import { ethers } from 'ethers'
 
-export default function SendSheet({ chain, accounts, balance, onClose, onSuccess, showToast }) {
+export default function SendSheet({ asset, accounts, balance, onClose, onSuccess, showToast }) {
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('')
   const [fee, setFee] = useState(null)
@@ -15,12 +11,14 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
   const [sending, setSending] = useState(false)
   const [step, setStep] = useState('form') // form | review
 
+  const { chain, token } = asset
   const isBtc = chain.id === 'bitcoin'
+  const isToken = asset.kind === 'token'
 
   useEffect(() => {
     setFee(null)
     setFeeError('')
-  }, [chain.id])
+  }, [asset.key])
 
   function validRecipient() {
     if (isBtc) return to.trim().length > 10
@@ -39,6 +37,16 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
       if (isBtc) {
         const est = await estimateBtcFee(accounts.btc.address, amt)
         setFee({ amount: est.feeBtc, symbol: 'BTC' })
+      } else if (isToken) {
+        const est = await estimateTokenTransferFee(
+          chain,
+          token.address,
+          accounts.evm.address,
+          to.trim(),
+          amount,
+          token.decimals
+        )
+        setFee({ amount: est.feeEth, symbol: chain.symbol })
       } else {
         const est = await estimateEvmFee(chain, to.trim(), amount)
         setFee({ amount: est.feeEth, symbol: chain.symbol })
@@ -60,6 +68,15 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
           to.trim(),
           parseFloat(amount)
         )
+      } else if (isToken) {
+        txId = await sendTokenTransaction(
+          chain,
+          accounts.evm.privateKey,
+          token.address,
+          to.trim(),
+          amount,
+          token.decimals
+        )
       } else {
         txId = await sendEvmTransaction(chain, accounts.evm.privateKey, to.trim(), amount)
       }
@@ -76,17 +93,17 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-chain-tag">
-          <div className="chip" style={{ background: chain.color, width: 24, height: 24, fontSize: 10 }}>
-            {chain.symbol.slice(0, 3)}
+          <div className="chip" style={{ background: asset.color, width: 24, height: 24, fontSize: 10 }}>
+            {asset.symbol.slice(0, 3)}
           </div>
           {chain.name}
         </div>
-        <h2>Отправить {chain.symbol}</h2>
+        <h2>Отправить {asset.symbol}</h2>
 
         {step === 'form' && (
           <div className="stack">
             <span className="hint">
-              Баланс: {balance != null ? `${Number(balance).toFixed(6)} ${chain.symbol}` : '…'}
+              Баланс: {balance != null ? `${Number(balance).toFixed(6)} ${asset.symbol}` : '…'}
             </span>
             <div className="field">
               <label>Адрес получателя</label>
@@ -98,7 +115,7 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
               {to && !validRecipient() && <span className="error">Неверный формат адреса</span>}
             </div>
             <div className="field">
-              <label>Сумма ({chain.symbol})</label>
+              <label>Сумма ({asset.symbol})</label>
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -115,6 +132,9 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
                 </button>
               )}
             </div>
+            {isToken && (
+              <span className="hint">Комиссия сети оплачивается в {chain.symbol}, не в {asset.symbol}.</span>
+            )}
             {feeError && <span className="error">{feeError}</span>}
             <button
               className="btn btn-primary"
@@ -137,7 +157,7 @@ export default function SendSheet({ chain, accounts, balance, onClose, onSuccess
             <div className="fee-box">
               <span>Сумма</span>
               <span>
-                {amount} {chain.symbol}
+                {amount} {asset.symbol}
               </span>
             </div>
             <div className="fee-box">

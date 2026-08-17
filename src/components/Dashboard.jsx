@@ -1,17 +1,15 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { EVM_CHAINS, BITCOIN_CHAIN } from '../lib/chains'
 import { getEvmBalance, getBtcBalance } from '../lib/walletCore'
+import { getTokenBalance, getTokenPrice } from '../lib/tokens'
+import { getNativeMarketData } from '../lib/prices'
+import { loadCustomTokens, addCustomToken, removeCustomToken } from '../lib/storage'
 import AssetDetail from './AssetDetail'
 import SendSheet from './SendSheet'
 import ReceiveSheet from './ReceiveSheet'
 import SettingsSheet from './SettingsSheet'
-
-const PRICE_IDS = {
-  ETH: 'ethereum',
-  BNB: 'binancecoin',
-  POL: 'matic-network',
-  BTC: 'bitcoin',
-}
+import AddAssetSheet from './AddAssetSheet'
+import Sparkline from './Sparkline'
 
 function short(addr) {
   if (!addr) return ''
@@ -20,95 +18,143 @@ function short(addr) {
 
 export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, password, showToast }) {
   const chains = [...EVM_CHAINS, BITCOIN_CHAIN]
+  const [customTokens, setCustomTokens] = useState(loadCustomTokens())
   const [balances, setBalances] = useState({})
-  const [prices, setPrices] = useState({})
+  const [marketData, setMarketData] = useState({}) // by coingeckoId (native)
+  const [tokenPrices, setTokenPrices] = useState({}) // by asset key (token)
   const [loading, setLoading] = useState(true)
-  const [detailChain, setDetailChain] = useState(null)
+  const [detailKey, setDetailKey] = useState(null)
   const [sheet, setSheet] = useState(null) // 'send' | 'receive' | null
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [addAssetOpen, setAddAssetOpen] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
 
+  // Unified list: native coins for every chain, plus any tokens the user added.
+  const assets = useMemo(() => {
+    const list = chains.map((chain) => ({
+      key: chain.id,
+      kind: 'native',
+      chain,
+      symbol: chain.symbol,
+      name: chain.name,
+      color: chain.color,
+    }))
+    for (const chain of EVM_CHAINS) {
+      for (const token of customTokens[chain.id] || []) {
+        list.push({
+          key: `${chain.id}:${token.address}`,
+          kind: 'token',
+          chain,
+          token,
+          symbol: token.symbol,
+          name: `${token.name} · ${chain.name}`,
+          color: chain.color,
+        })
+      }
+    }
+    return list
+  }, [customTokens])
+
   const addressFor = useCallback(
-    (chain) => (chain.id === 'bitcoin' ? accounts.btc.address : accounts.evm.address),
+    (asset) => (asset.chain.id === 'bitcoin' ? accounts.btc.address : accounts.evm.address),
     [accounts]
   )
 
   const loadBalances = useCallback(async () => {
     setLoading(true)
     const results = await Promise.all(
-      chains.map(async (chain) => {
+      assets.map(async (asset) => {
         try {
-          const value =
-            chain.id === 'bitcoin'
-              ? await getBtcBalance(accounts.btc.address)
-              : await getEvmBalance(chain, accounts.evm.address)
-          return [chain.id, { value, error: null }]
+          let value
+          if (asset.kind === 'token') {
+            value = await getTokenBalance(asset.chain, asset.token.address, accounts.evm.address)
+          } else if (asset.chain.id === 'bitcoin') {
+            value = await getBtcBalance(accounts.btc.address)
+          } else {
+            value = await getEvmBalance(asset.chain, accounts.evm.address)
+          }
+          return [asset.key, { value, error: null }]
         } catch (e) {
-          return [chain.id, { value: null, error: e.message }]
+          return [asset.key, { value: null, error: e.message }]
         }
       })
     )
     setBalances(Object.fromEntries(results))
     setLoading(false)
-  }, [accounts])
+  }, [assets, accounts])
 
   useEffect(() => {
     loadBalances()
-    // best-effort USD prices, never blocks the UI
-    fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${Object.values(PRICE_IDS).join(
-        ','
-      )}&vs_currencies=usd`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        const bySymbol = {}
-        for (const [sym, id] of Object.entries(PRICE_IDS)) {
-          if (data[id]) bySymbol[sym] = data[id].usd
-        }
-        setPrices(bySymbol)
-      })
-      .catch(() => {})
-  }, [loadBalances, refreshTick])
 
-  const totalUsd = chains.reduce((sum, chain) => {
-    const bal = balances[chain.id]?.value
-    const price = prices[chain.symbol]
-    if (bal != null && price != null) return sum + bal * price
+    const nativeIds = chains.map((c) => c.coingeckoId)
+    getNativeMarketData(nativeIds).then(setMarketData)
+
+    const tokenAssets = assets.filter((a) => a.kind === 'token')
+    Promise.all(
+      tokenAssets.map(async (a) => {
+        const price = await getTokenPrice(a.chain, a.token.address).catch(() => null)
+        return [a.key, price]
+      })
+    ).then((pairs) => setTokenPrices(Object.fromEntries(pairs.filter(([, p]) => p))))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadBalances, refreshTick, customTokens])
+
+  function priceFor(asset) {
+    if (asset.kind === 'token') return tokenPrices[asset.key] || null
+    const md = marketData[asset.chain.coingeckoId]
+    return md ? { usd: md.usd, change24h: md.change24h, sparkline: md.sparkline } : null
+  }
+
+  const totalUsd = assets.reduce((sum, asset) => {
+    const bal = balances[asset.key]?.value
+    const price = priceFor(asset)
+    if (bal != null && price?.usd != null) return sum + bal * price.usd
     return sum
   }, 0)
-  const haveAnyPrice = Object.keys(prices).length > 0
+  const haveAnyPrice = assets.some((a) => priceFor(a)?.usd != null)
 
-  function openAsset(chain) {
-    setDetailChain(chain)
+  function handleAddToken(chain, token) {
+    const updated = addCustomToken(chain.id, token)
+    setCustomTokens(updated)
+  }
+
+  function handleRemoveToken(asset) {
+    const updated = removeCustomToken(asset.chain.id, asset.token.address)
+    setCustomTokens(updated)
+    setDetailKey(null)
+    showToast(`${asset.symbol} убран из списка`)
   }
 
   function closeSheet() {
     setSheet(null)
   }
 
+  const detailAsset = assets.find((a) => a.key === detailKey)
+
   // --- Asset detail screen ---
-  if (detailChain) {
-    const bal = balances[detailChain.id]
-    const price = prices[detailChain.symbol]
-    const usd = bal?.value != null && price != null ? bal.value * price : null
+  if (detailAsset) {
+    const bal = balances[detailAsset.key]
+    const price = priceFor(detailAsset)
+    const usd = bal?.value != null && price?.usd != null ? bal.value * price.usd : null
 
     return (
       <>
         <AssetDetail
-          chain={detailChain}
-          address={addressFor(detailChain)}
+          asset={detailAsset}
+          address={addressFor(detailAsset)}
           balance={bal?.value}
           usd={usd}
+          price={price}
           loading={loading}
-          onBack={() => setDetailChain(null)}
+          onBack={() => setDetailKey(null)}
           onSend={() => setSheet('send')}
           onReceive={() => setSheet('receive')}
+          onRemove={detailAsset.kind === 'token' ? () => handleRemoveToken(detailAsset) : null}
         />
 
         {sheet === 'send' && (
           <SendSheet
-            chain={detailChain}
+            asset={detailAsset}
             accounts={accounts}
             balance={bal?.value}
             onClose={closeSheet}
@@ -123,8 +169,8 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
 
         {sheet === 'receive' && (
           <ReceiveSheet
-            chain={detailChain}
-            address={addressFor(detailChain)}
+            asset={detailAsset}
+            address={addressFor(detailAsset)}
             onClose={closeSheet}
             showToast={showToast}
           />
@@ -157,34 +203,53 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
         </div>
       </div>
 
-      <div className="section-label">Активы — нажмите, чтобы открыть</div>
+      <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span>Активы — нажмите, чтобы открыть</span>
+        <button className="link" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setAddAssetOpen(true)}>
+          + Добавить
+        </button>
+      </div>
+
       <div className="ledger card" style={{ padding: 8 }}>
-        {chains.map((chain) => {
-          const bal = balances[chain.id]
-          const price = prices[chain.symbol]
-          const usd = bal?.value != null && price != null ? bal.value * price : null
+        {assets.map((asset) => {
+          const bal = balances[asset.key]
+          const price = priceFor(asset)
+          const usd = bal?.value != null && price?.usd != null ? bal.value * price.usd : null
+          const change = price?.change24h
+          const positive = change != null ? change >= 0 : true
           return (
-            <button key={chain.id} className="ledger-row" onClick={() => openAsset(chain)}>
-              <div className="chip" style={{ background: chain.color }}>
-                {chain.symbol.slice(0, 3)}
+            <button key={asset.key} className="ledger-row" onClick={() => setDetailKey(asset.key)}>
+              <div className="chip" style={{ background: asset.color }}>
+                {asset.symbol.slice(0, 3)}
               </div>
               <div className="ledger-info">
-                <div className="name">{chain.name}</div>
-                <div className="addr">{short(addressFor(chain))}</div>
+                <div className="name">{asset.symbol}</div>
+                <div className="addr">{asset.name}</div>
               </div>
+              {price?.sparkline?.length > 1 && (
+                <div style={{ width: 56, flexShrink: 0 }}>
+                  <Sparkline data={price.sparkline} positive={positive} height={28} />
+                </div>
+              )}
               <div className="ledger-bal">
-                {loading ? (
+                {bal == null ? (
                   <div className="spinner" style={{ marginLeft: 'auto' }} />
-                ) : bal?.error ? (
+                ) : bal.error ? (
                   <span style={{ color: 'var(--danger)', fontSize: 12 }}>ошибка</span>
                 ) : (
                   <>
                     <div>
-                      {Number(bal.value).toFixed(bal.value < 1 ? 6 : 4)} {chain.symbol}
+                      {Number(bal.value).toFixed(bal.value < 1 ? 6 : 4)} {asset.symbol}
                     </div>
-                    {usd != null && (
-                      <div style={{ color: 'var(--text-low)', fontSize: 12 }}>${usd.toFixed(2)}</div>
-                    )}
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', fontSize: 12 }}>
+                      {usd != null && <span style={{ color: 'var(--text-low)' }}>${usd.toFixed(2)}</span>}
+                      {change != null && (
+                        <span style={{ color: positive ? 'var(--verdigris)' : 'var(--danger)' }}>
+                          {positive ? '+' : ''}
+                          {change.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -208,6 +273,17 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
           onClose={() => setSettingsOpen(false)}
           onLock={onLock}
           onDeleteVault={onDeleteVault}
+          showToast={showToast}
+        />
+      )}
+
+      {addAssetOpen && (
+        <AddAssetSheet
+          existingAddresses={Object.fromEntries(
+            Object.entries(customTokens).map(([id, list]) => [id, list.map((t) => t.address)])
+          )}
+          onAdd={handleAddToken}
+          onClose={() => setAddAssetOpen(false)}
           showToast={showToast}
         />
       )}

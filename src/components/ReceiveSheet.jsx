@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 
-export default function ReceiveSheet({ chain, address, onClose, showToast }) {
+export default function ReceiveSheet({ asset, address, onClose, showToast }) {
   const [qr, setQr] = useState('')
+  const { chain } = asset
 
   useEffect(() => {
     QRCode.toDataURL(address, { margin: 1, width: 220, color: { dark: '#0b0f18' } })
@@ -19,15 +20,15 @@ export default function ReceiveSheet({ chain, address, onClose, showToast }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-chain-tag">
-          <div className="chip" style={{ background: chain.color, width: 24, height: 24, fontSize: 10 }}>
-            {chain.symbol.slice(0, 3)}
+          <div className="chip" style={{ background: asset.color, width: 24, height: 24, fontSize: 10 }}>
+            {asset.symbol.slice(0, 3)}
           </div>
           {chain.name}
         </div>
-        <h2>Получить {chain.symbol}</h2>
+        <h2>Получить {asset.symbol}</h2>
         <div className="stack">
           {chain.id !== 'bitcoin' && (
-            <span className="hint">Этот адрес подходит для любой EVM-сети (Ethereum, BSC, Polygon, Arbitrum…)</span>
+            <span className="hint">Этот адрес подходит для любой EVM-сети (Ethereum, BSC, Polygon и других)</span>
           )}
 
           {qr && (
