@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import { Settings, RefreshCw, Plus } from 'lucide-react'
 import { EVM_CHAINS, BITCOIN_CHAIN } from '../lib/chains'
 import { getEvmBalance, getBtcBalance } from '../lib/walletCore'
 import { getTokenBalance, getTokenPrice } from '../lib/tokens'
 import { getNativeMarketData } from '../lib/prices'
-import { loadCustomTokens, addCustomToken, removeCustomToken } from '../lib/storage'
+import { addCustomToken, removeCustomToken } from '../lib/storage'
 import AssetDetail from './AssetDetail'
 import SendSheet from './SendSheet'
 import ReceiveSheet from './ReceiveSheet'
@@ -16,9 +17,8 @@ function short(addr) {
   return addr.slice(0, 6) + '…' + addr.slice(-4)
 }
 
-export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, password, showToast }) {
+export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, password, showToast, customTokens, setCustomTokens }) {
   const chains = [...EVM_CHAINS, BITCOIN_CHAIN]
-  const [customTokens, setCustomTokens] = useState(loadCustomTokens())
   const [balances, setBalances] = useState({})
   const [marketData, setMarketData] = useState({}) // by coingeckoId (native)
   const [tokenPrices, setTokenPrices] = useState({}) // by asset key (token)
@@ -191,8 +191,8 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
             Vault
           </span>
         </div>
-        <button className="btn-ghost" onClick={() => setSettingsOpen(true)} aria-label="Настройки">
-          ⚙
+        <button className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Настройки">
+          <Settings size={18} strokeWidth={2} />
         </button>
       </div>
 
@@ -205,8 +205,8 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
 
       <div className="section-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span>Активы — нажмите, чтобы открыть</span>
-        <button className="link" style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setAddAssetOpen(true)}>
-          + Добавить
+        <button className="link" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => setAddAssetOpen(true)}>
+          <Plus size={14} strokeWidth={2.5} /> Добавить
         </button>
       </div>
 
@@ -260,10 +260,10 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
 
       <button
         className="btn btn-ghost"
-        style={{ margin: '4px auto 0' }}
+        style={{ margin: '4px auto 0', display: 'flex', alignItems: 'center', gap: 6 }}
         onClick={() => setRefreshTick((t) => t + 1)}
       >
-        ↻ Обновить балансы
+        <RefreshCw size={14} strokeWidth={2} /> Обновить балансы
       </button>
 
       {settingsOpen && (

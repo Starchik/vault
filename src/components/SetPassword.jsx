@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 
 export default function SetPassword({ onSubmit, onBack }) {
   const [pw, setPw] = useState('')
@@ -21,7 +22,7 @@ export default function SetPassword({ onSubmit, onBack }) {
     <div className="stack">
       <div className="topbar">
         <button className="back" onClick={onBack}>
-          ← Назад
+          <ArrowLeft size={15} /> Назад
         </button>
       </div>
       <h1 className="headline">Задайте пароль</h1>

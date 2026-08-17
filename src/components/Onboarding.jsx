@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { generateMnemonic, isValidMnemonic } from '../lib/walletCore'
 
 export default function Onboarding({ onCreate, onImport }) {
@@ -25,7 +26,7 @@ export default function Onboarding({ onCreate, onImport }) {
       <div className="stack">
         <div className="topbar">
           <button className="back" onClick={() => setMode('start')}>
-            ← Назад
+            <ArrowLeft size={15} /> Назад
           </button>
         </div>
         <h1 className="headline">Импорт кошелька</h1>

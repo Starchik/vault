@@ -18,6 +18,7 @@
     "ecpair": "^3.0.1",
     "ethers": "^6.17.0",
     "jsdom": "^30.0.1",
+    "lucide-react": "^1.31.0",
     "puppeteer-core": "^25.7.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",

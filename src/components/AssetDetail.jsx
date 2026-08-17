@@ -1,3 +1,4 @@
+import { ArrowLeft, ExternalLink, ArrowUpRight, ArrowDownLeft, Trash2 } from 'lucide-react'
 import Sparkline from './Sparkline'
 
 function short(addr) {
@@ -24,7 +25,7 @@ export default function AssetDetail({
     <div className="stack">
       <div className="topbar">
         <button className="back" onClick={onBack}>
-          ← Все активы
+          <ArrowLeft size={15} /> Все активы
         </button>
       </div>
 
@@ -63,11 +64,11 @@ export default function AssetDetail({
       </div>
 
       <div className="action-row">
-        <button className="btn btn-primary" onClick={onSend}>
-          Отправить
+        <button className="btn btn-primary" onClick={onSend} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <ArrowUpRight size={16} /> Отправить
         </button>
-        <button className="btn btn-secondary" onClick={onReceive}>
-          Получить
+        <button className="btn btn-secondary" onClick={onReceive} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <ArrowDownLeft size={16} /> Получить
         </button>
       </div>
 
@@ -82,17 +83,17 @@ export default function AssetDetail({
 
       <a
         className="link center"
-        style={{ margin: '4px auto 0' }}
+        style={{ margin: '4px auto 0', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}
         href={`${asset.chain.explorer}/address/${address}`}
         target="_blank"
         rel="noreferrer"
       >
-        Смотреть в блокэксплорере ↗
+        Смотреть в блокэксплорере <ExternalLink size={13} />
       </a>
 
       {onRemove && (
-        <button className="btn btn-ghost" style={{ margin: '10px auto 0', color: 'var(--danger)' }} onClick={onRemove}>
-          Убрать из списка активов
+        <button className="btn btn-ghost" style={{ margin: '10px auto 0', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 6 }} onClick={onRemove}>
+          <Trash2 size={14} /> Убрать из списка активов
         </button>
       )}
     </div>

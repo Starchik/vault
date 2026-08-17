@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 
 export default function BackupSeed({ mnemonic, onConfirm, onBack }) {
   const [confirmed, setConfirmed] = useState(false)
@@ -8,7 +9,7 @@ export default function BackupSeed({ mnemonic, onConfirm, onBack }) {
     <div className="stack">
       <div className="topbar">
         <button className="back" onClick={onBack}>
-          ← Назад
+          <ArrowLeft size={15} /> Назад
         </button>
       </div>
       <h1 className="headline">Сохраните seed-фразу</h1>

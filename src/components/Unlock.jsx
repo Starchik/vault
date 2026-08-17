@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Fingerprint, Lock } from 'lucide-react'
 
 export default function Unlock({
   onUnlock,
@@ -29,8 +30,8 @@ export default function Unlock({
     return (
       <div className="stack">
         <div className="center">
-          <div className="lock-icon" style={{ fontSize: 22 }}>
-            👆
+          <div className="lock-icon">
+            <Fingerprint size={22} />
           </div>
           <h1 className="headline">С возвращением</h1>
           <p className="sub">
@@ -56,7 +57,9 @@ export default function Unlock({
   return (
     <form className="stack" onSubmit={submit}>
       <div className="center">
-        <div className="lock-icon">🔒</div>
+        <div className="lock-icon">
+          <Lock size={20} />
+        </div>
         <h1 className="headline">С возвращением</h1>
         <p className="sub">Введите пароль, чтобы разблокировать кошелёк.</p>
       </div>

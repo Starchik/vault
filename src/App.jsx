@@ -4,9 +4,12 @@ import BackupSeed from './components/BackupSeed'
 import SetPassword from './components/SetPassword'
 import Unlock from './components/Unlock'
 import Dashboard from './components/Dashboard'
+import SwapView from './components/SwapView'
+import BuyView from './components/BuyView'
+import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import { encryptSecret, decryptSecret } from './lib/crypto'
-import { hasVault, saveVault, loadVault, clearVault } from './lib/storage'
+import { hasVault, saveVault, loadVault, clearVault, loadCustomTokens } from './lib/storage'
 import { deriveAllAccounts } from './lib/walletCore'
 import { unlockWithBiometric, isBiometricEnrolled, removeBiometric } from './lib/biometric'
 
@@ -19,6 +22,8 @@ export default function App() {
   const [unlockBusy, setUnlockBusy] = useState(false)
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
+  const [tab, setTab] = useState('wallet')
+  const [customTokens, setCustomTokens] = useState(() => loadCustomTokens())
 
   function showToast(message, type = '') {
     setToast({ message, type })
@@ -96,7 +101,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${screen === 'dashboard' ? 'with-nav' : ''}`}>
       {screen !== 'dashboard' && (
         <div className="brand">
           <div className="seal">V</div>
@@ -146,7 +151,7 @@ export default function App() {
           />
         )}
 
-        {screen === 'dashboard' && session && (
+        {screen === 'dashboard' && session && tab === 'wallet' && (
           <Dashboard
             accounts={session.accounts}
             mnemonic={session.mnemonic}
@@ -154,9 +159,21 @@ export default function App() {
             onLock={handleLock}
             onDeleteVault={handleDeleteVault}
             showToast={showToast}
+            customTokens={customTokens}
+            setCustomTokens={setCustomTokens}
           />
         )}
+
+        {screen === 'dashboard' && session && tab === 'swap' && (
+          <SwapView accounts={session.accounts} customTokens={customTokens} showToast={showToast} />
+        )}
+
+        {screen === 'dashboard' && session && tab === 'buy' && (
+          <BuyView accounts={session.accounts} />
+        )}
       </div>
+
+      {screen === 'dashboard' && session && <BottomNav active={tab} onChange={setTab} />}
 
       <Toast toast={toast} />
     </div>
