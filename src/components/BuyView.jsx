@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { EVM_CHAINS, BITCOIN_CHAIN } from '../lib/chains'
 import { ONRAMP_CONFIG, isOnrampConfigured, activeProvider, buildMoonpayUrl, buildTransakUrl } from '../lib/onramp'
+import OnrampFrame from './OnrampFrame'
 
 const BUY_ASSETS = [
   ...EVM_CHAINS.map((c) => ({ symbol: c.symbol, chainId: c.id, name: c.name, color: c.color })),
@@ -34,6 +35,7 @@ export default function BuyView({ accounts, testnet, showToast }) {
   const [selected, setSelected] = useState(BUY_ASSETS[0])
   const [qr, setQr] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [frameUrl, setFrameUrl] = useState(null)
 
   const configured = isOnrampConfigured()
   const provider = activeProvider()
@@ -60,7 +62,7 @@ export default function BuyView({ accounts, testnet, showToast }) {
       provider === 'transak'
         ? buildTransakUrl({ symbol: selected.symbol, chainId: selected.chainId, walletAddress: address })
         : buildMoonpayUrl({ symbol: selected.symbol, walletAddress: address })
-    window.open(url, '_blank', 'noopener,noreferrer')
+    setFrameUrl(url)
   }
 
   if (testnet) {
@@ -190,7 +192,7 @@ export default function BuyView({ accounts, testnet, showToast }) {
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               onClick={openOnramp}
             >
-              Купить {selected.symbol} с доставкой на адрес <ExternalLink size={15} />
+              Купить {selected.symbol} с доставкой на адрес
             </button>
           ) : (
             <div className="warn-box">
@@ -200,6 +202,14 @@ export default function BuyView({ accounts, testnet, showToast }) {
             </div>
           )}
         </div>
+      )}
+
+      {frameUrl && (
+        <OnrampFrame
+          url={frameUrl}
+          title={provider === 'transak' ? 'Transak' : 'MoonPay'}
+          onClose={() => setFrameUrl(null)}
+        />
       )}
     </div>
   )
