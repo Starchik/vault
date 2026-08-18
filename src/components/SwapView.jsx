@@ -6,7 +6,7 @@ import { getTokenBalance } from '../lib/tokens'
 import { searchTokens } from '../lib/tokenList'
 import { getSwapQuote, needsApproval, approveToken, executeSwap, NATIVE_PSEUDO_ADDRESS } from '../lib/swap'
 
-export default function SwapView({ accounts, customTokens, showToast }) {
+export default function SwapView({ accounts, customTokens, showToast, testnet }) {
   const [chain, setChain] = useState(EVM_CHAINS[0])
   const [fromAsset, setFromAsset] = useState({ kind: 'native' })
   const [toToken, setToToken] = useState(null)
@@ -103,6 +103,27 @@ export default function SwapView({ accounts, customTokens, showToast }) {
     } finally {
       setSwapping(false)
     }
+  }
+
+  if (testnet) {
+    return (
+      <div className="stack">
+        <div className="topbar">
+          <div className="brand" style={{ padding: 0 }}>
+            <div className="seal" style={{ width: 26, height: 26, fontSize: 13 }}>
+              V
+            </div>
+            <span className="brand-name" style={{ fontSize: 16 }}>
+              Обмен
+            </span>
+          </div>
+        </div>
+        <div className="warn-box" style={{ marginTop: 20 }}>
+          Обмен недоступен в тестовой сети — у агрегатора нет тестовой ликвидности.
+          Переключитесь на основную сеть в Настройках.
+        </div>
+      </div>
+    )
   }
 
   return (

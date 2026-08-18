@@ -51,3 +51,14 @@ export function removeCustomToken(chainId, address) {
   saveCustomTokens(all)
   return all
 }
+
+const TESTNET_MODE_KEY = 'cw_testnet_mode_v1'
+
+export function isTestnetMode() {
+  return localStorage.getItem(TESTNET_MODE_KEY) === '1'
+}
+
+export function setTestnetMode(on) {
+  if (on) localStorage.setItem(TESTNET_MODE_KEY, '1')
+  else localStorage.removeItem(TESTNET_MODE_KEY)
+}

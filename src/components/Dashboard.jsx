@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Settings, RefreshCw, Plus } from 'lucide-react'
-import { EVM_CHAINS, BITCOIN_CHAIN } from '../lib/chains'
+import { EVM_CHAINS, BITCOIN_CHAIN, TESTNET_EVM_CHAINS, BITCOIN_TESTNET_CHAIN } from '../lib/chains'
 import { getEvmBalance, getBtcBalance } from '../lib/walletCore'
 import { getTokenBalance, getTokenPrice } from '../lib/tokens'
 import { getNativeMarketData } from '../lib/prices'
@@ -17,8 +17,19 @@ function short(addr) {
   return addr.slice(0, 6) + '…' + addr.slice(-4)
 }
 
-export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, password, showToast, customTokens, setCustomTokens }) {
-  const chains = [...EVM_CHAINS, BITCOIN_CHAIN]
+export default function Dashboard({
+  accounts,
+  onLock,
+  onDeleteVault,
+  mnemonic,
+  password,
+  showToast,
+  customTokens,
+  setCustomTokens,
+  testnet,
+  onToggleTestnet,
+}) {
+  const chains = testnet ? [...TESTNET_EVM_CHAINS, BITCOIN_TESTNET_CHAIN] : [...EVM_CHAINS, BITCOIN_CHAIN]
   const [balances, setBalances] = useState({})
   const [marketData, setMarketData] = useState({}) // by coingeckoId (native)
   const [tokenPrices, setTokenPrices] = useState({}) // by asset key (token)
@@ -30,6 +41,8 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
   const [refreshTick, setRefreshTick] = useState(0)
 
   // Unified list: native coins for every chain, plus any tokens the user added.
+  // Tokens are mainnet-only — testnets rarely have the real contracts, so we
+  // don't surface them there.
   const assets = useMemo(() => {
     const list = chains.map((chain) => ({
       key: chain.id,
@@ -39,24 +52,30 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
       name: chain.name,
       color: chain.color,
     }))
-    for (const chain of EVM_CHAINS) {
-      for (const token of customTokens[chain.id] || []) {
-        list.push({
-          key: `${chain.id}:${token.address}`,
-          kind: 'token',
-          chain,
-          token,
-          symbol: token.symbol,
-          name: `${token.name} · ${chain.name}`,
-          color: chain.color,
-        })
+    if (!testnet) {
+      for (const chain of EVM_CHAINS) {
+        for (const token of customTokens[chain.id] || []) {
+          list.push({
+            key: `${chain.id}:${token.address}`,
+            kind: 'token',
+            chain,
+            token,
+            symbol: token.symbol,
+            name: `${token.name} · ${chain.name}`,
+            color: chain.color,
+          })
+        }
       }
     }
     return list
-  }, [customTokens])
+  }, [customTokens, testnet])
 
   const addressFor = useCallback(
-    (asset) => (asset.chain.id === 'bitcoin' ? accounts.btc.address : accounts.evm.address),
+    (asset) => {
+      if (asset.chain.id === 'bitcoin') return accounts.btc.address
+      if (asset.chain.id === 'bitcoin-testnet') return accounts.btcTestnet.address
+      return accounts.evm.address
+    },
     [accounts]
   )
 
@@ -68,8 +87,8 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
           let value
           if (asset.kind === 'token') {
             value = await getTokenBalance(asset.chain, asset.token.address, accounts.evm.address)
-          } else if (asset.chain.id === 'bitcoin') {
-            value = await getBtcBalance(accounts.btc.address)
+          } else if (asset.chain.id === 'bitcoin' || asset.chain.id === 'bitcoin-testnet') {
+            value = await getBtcBalance(addressFor(asset), asset.chain)
           } else {
             value = await getEvmBalance(asset.chain, accounts.evm.address)
           }
@@ -81,7 +100,7 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
     )
     setBalances(Object.fromEntries(results))
     setLoading(false)
-  }, [assets, accounts])
+  }, [assets, accounts, addressFor])
 
   useEffect(() => {
     loadBalances()
@@ -196,6 +215,12 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
         </button>
       </div>
 
+      {testnet && (
+        <div className="testnet-banner">
+          Тестовая сеть — монеты бесплатные, реальной ценности не имеют
+        </div>
+      )}
+
       <div className="balance-hero">
         <div className="label">Портфель</div>
         <div className="amount">
@@ -274,6 +299,8 @@ export default function Dashboard({ accounts, onLock, onDeleteVault, mnemonic, p
           onLock={onLock}
           onDeleteVault={onDeleteVault}
           showToast={showToast}
+          testnet={testnet}
+          onToggleTestnet={onToggleTestnet}
         />
       )}
 

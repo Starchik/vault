@@ -12,8 +12,9 @@ export default function SendSheet({ asset, accounts, balance, onClose, onSuccess
   const [step, setStep] = useState('form') // form | review
 
   const { chain, token } = asset
-  const isBtc = chain.id === 'bitcoin'
+  const isBtc = chain.id === 'bitcoin' || chain.id === 'bitcoin-testnet'
   const isToken = asset.kind === 'token'
+  const btcAccount = chain.id === 'bitcoin-testnet' ? accounts.btcTestnet : accounts.btc
 
   useEffect(() => {
     setFee(null)
@@ -35,8 +36,8 @@ export default function SendSheet({ asset, accounts, balance, onClose, onSuccess
     if (!amt || amt <= 0) return
     try {
       if (isBtc) {
-        const est = await estimateBtcFee(accounts.btc.address, amt)
-        setFee({ amount: est.feeBtc, symbol: 'BTC' })
+        const est = await estimateBtcFee(btcAccount.address, amt, chain)
+        setFee({ amount: est.feeBtc, symbol: asset.symbol })
       } else if (isToken) {
         const est = await estimateTokenTransferFee(
           chain,
@@ -63,10 +64,11 @@ export default function SendSheet({ asset, accounts, balance, onClose, onSuccess
       let txId
       if (isBtc) {
         txId = await sendBtcTransaction(
-          accounts.btc.privateKeyWIF,
-          accounts.btc.address,
+          btcAccount.privateKeyWIF,
+          btcAccount.address,
           to.trim(),
-          parseFloat(amount)
+          parseFloat(amount),
+          chain
         )
       } else if (isToken) {
         txId = await sendTokenTransaction(
@@ -110,7 +112,7 @@ export default function SendSheet({ asset, accounts, balance, onClose, onSuccess
               <input
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
-                placeholder={isBtc ? 'bc1...' : '0x...'}
+                placeholder={isBtc ? (chain.id === 'bitcoin-testnet' ? 'tb1...' : 'bc1...') : '0x...'}
               />
               {to && !validRecipient() && <span className="error">Неверный формат адреса</span>}
             </div>

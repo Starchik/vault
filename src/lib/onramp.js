@@ -7,7 +7,7 @@
 export const ONRAMP_CONFIG = {
   // Get a free publishable key at https://dashboard.moonpay.com (sign up as
   // a business — no cost to obtain the key itself). Paste it below.
-  moonpayApiKey: '',
+  moonpayApiKey: 'pk_test_R9RmT7XjlnYD6i6pEIymACLJVMf74yq8',
   // Or use Transak instead: https://dashboard.transak.com
   transakApiKey: '',
 }
@@ -39,13 +39,15 @@ export function isOnrampConfigured() {
 
 export function buildMoonpayUrl({ symbol, walletAddress }) {
   const currencyCode = MOONPAY_CURRENCY_MAP[symbol] || symbol.toLowerCase()
+  const isTestKey = ONRAMP_CONFIG.moonpayApiKey.startsWith('pk_test_')
+  const base = isTestKey ? 'https://buy-sandbox.moonpay.com' : 'https://buy.moonpay.com'
   const params = new URLSearchParams({
     apiKey: ONRAMP_CONFIG.moonpayApiKey,
     currencyCode,
     walletAddress,
     colorCode: '#c9a227',
   })
-  return `https://buy.moonpay.com?${params.toString()}`
+  return `${base}?${params.toString()}`
 }
 
 export function buildTransakUrl({ symbol, chainId, walletAddress }) {

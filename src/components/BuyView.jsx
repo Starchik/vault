@@ -8,9 +8,10 @@ const BUY_ASSETS = [
   { symbol: BITCOIN_CHAIN.symbol, chainId: BITCOIN_CHAIN.id, name: BITCOIN_CHAIN.name, color: BITCOIN_CHAIN.color },
 ]
 
-export default function BuyView({ accounts }) {
+export default function BuyView({ accounts, testnet }) {
   const [selected, setSelected] = useState(BUY_ASSETS[0])
   const configured = isOnrampConfigured()
+  const isTestKey = ONRAMP_CONFIG.moonpayApiKey.startsWith('pk_test_')
 
   function addressFor(chainId) {
     return chainId === 'bitcoin' ? accounts.btc.address : accounts.evm.address
@@ -22,6 +23,27 @@ export default function BuyView({ accounts }) {
       ? buildMoonpayUrl({ symbol: selected.symbol, walletAddress })
       : buildTransakUrl({ symbol: selected.symbol, chainId: selected.chainId, walletAddress })
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  if (testnet) {
+    return (
+      <div className="stack">
+        <div className="topbar">
+          <div className="brand" style={{ padding: 0 }}>
+            <div className="seal" style={{ width: 26, height: 26, fontSize: 13 }}>
+              V
+            </div>
+            <span className="brand-name" style={{ fontSize: 16 }}>
+              Купить
+            </span>
+          </div>
+        </div>
+        <div className="warn-box" style={{ marginTop: 20 }}>
+          Покупка за карту недоступна в тестовой сети — переключитесь на основную сеть в
+          Настройках. Тестовые монеты можно получить бесплатно через кран на карточке актива.
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -46,6 +68,10 @@ export default function BuyView({ accounts }) {
         </h1>
         <p className="sub">Оплата картой через партнёра — средства поступят прямо на ваш адрес.</p>
       </div>
+
+      {configured && isTestKey && (
+        <div className="testnet-banner">Тестовый режим MoonPay — реальные деньги не списываются</div>
+      )}
 
       <div className="section-label">Выберите актив</div>
       <div className="ledger card" style={{ padding: 8 }}>

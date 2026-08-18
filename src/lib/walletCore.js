@@ -6,13 +6,12 @@ import { BIP32Factory } from 'bip32'
 import * as ecc from '@bitcoin-js/tiny-secp256k1-asmjs'
 import * as bitcoin from 'bitcoinjs-lib'
 import { ECPairFactory } from 'ecpair'
-import { EVM_CHAINS, BITCOIN_CHAIN } from './chains'
+import { EVM_CHAINS, BITCOIN_CHAIN, BITCOIN_TESTNET_CHAIN } from './chains'
 
 const bip32 = BIP32Factory(ecc)
 const ECPair = ECPairFactory(ecc)
 bitcoin.initEccLib(ecc)
 
-const BTC_PATH = "m/84'/0'/0'/0/0" // native segwit (bech32)
 const EVM_PATH = "m/44'/60'/0'/0/0"
 
 export function generateMnemonic() {
@@ -46,7 +45,7 @@ export function getEvmProvider(chain) {
 export async function getEvmBalance(chain, address) {
   const provider = getEvmProvider(chain)
   const balance = await provider.getBalance(address)
-  return ethers.formatEther(balance)
+  return Number(ethers.formatEther(balance))
 }
 
 export async function estimateEvmFee(chain, toAddress, amountEth) {
@@ -55,7 +54,7 @@ export async function estimateEvmFee(chain, toAddress, amountEth) {
   const gasLimit = 21000n
   const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice ?? 0n
   const feeWei = gasPrice * gasLimit
-  return { feeEth: ethers.formatEther(feeWei), gasLimit, feeData }
+  return { feeEth: Number(ethers.formatEther(feeWei)), gasLimit, feeData }
 }
 
 export async function sendEvmTransaction(chain, privateKey, toAddress, amountEth) {
@@ -76,19 +75,28 @@ export async function getEvmHistory(chain, address) {
 
 // --- Bitcoin ---
 
-export function deriveBtcAccount(mnemonic) {
-  const seed = bip39.mnemonicToSeedSync(mnemonic)
-  const root = bip32.fromSeed(seed, bitcoin.networks.bitcoin)
-  const child = root.derivePath(BTC_PATH)
-  const { address } = bitcoin.payments.p2wpkh({
-    pubkey: Buffer.from(child.publicKey),
-    network: bitcoin.networks.bitcoin,
-  })
-  return { address, privateKeyWIF: child.toWIF() }
+const BTC_PATH_MAINNET = "m/84'/0'/0'/0/0" // native segwit (bech32)
+const BTC_PATH_TESTNET = "m/84'/1'/0'/0/0" // BIP44 testnet coin type
+
+function btcNetworkFor(btcChain) {
+  return btcChain.id === 'bitcoin-testnet' ? bitcoin.networks.testnet : bitcoin.networks.bitcoin
 }
 
-async function btcFetch(path) {
-  const res = await fetch(`${BITCOIN_CHAIN.apiBase}${path}`)
+export function deriveBtcAccount(mnemonic, btcChain = BITCOIN_CHAIN) {
+  const network = btcNetworkFor(btcChain)
+  const path = btcChain.id === 'bitcoin-testnet' ? BTC_PATH_TESTNET : BTC_PATH_MAINNET
+  const seed = bip39.mnemonicToSeedSync(mnemonic)
+  const root = bip32.fromSeed(seed, network)
+  const child = root.derivePath(path)
+  const { address } = bitcoin.payments.p2wpkh({
+    pubkey: Buffer.from(child.publicKey),
+    network,
+  })
+  return { address, privateKeyWIF: child.toWIF(network) }
+}
+
+async function btcFetch(btcChain, path) {
+  const res = await fetch(`${btcChain.apiBase}${path}`)
   if (!res.ok) throw new Error(`Blockstream API: ${res.status}`)
   const text = await res.text()
   try {
@@ -98,8 +106,8 @@ async function btcFetch(path) {
   }
 }
 
-export async function getBtcBalance(address) {
-  const info = await btcFetch(`/address/${address}`)
+export async function getBtcBalance(address, btcChain = BITCOIN_CHAIN) {
+  const info = await btcFetch(btcChain, `/address/${address}`)
   const sats =
     info.chain_stats.funded_txo_sum -
     info.chain_stats.spent_txo_sum +
@@ -107,38 +115,39 @@ export async function getBtcBalance(address) {
   return sats / 1e8
 }
 
-export async function getBtcHistory(address) {
-  return { explorerUrl: `${BITCOIN_CHAIN.explorer}/address/${address}` }
+export async function getBtcHistory(address, btcChain = BITCOIN_CHAIN) {
+  return { explorerUrl: `${btcChain.explorer}/address/${address}` }
 }
 
-async function getBtcFeeRate() {
-  const fees = await btcFetch('/fee-estimates')
+async function getBtcFeeRate(btcChain) {
+  const fees = await btcFetch(btcChain, '/fee-estimates')
   return Math.ceil(fees['3'] || fees['6'] || 5) // sat/vB, target ~3 blocks
 }
 
-export async function estimateBtcFee(address, amountBtc) {
-  const utxos = await btcFetch(`/address/${address}/utxo`)
-  const feeRate = await getBtcFeeRate()
+export async function estimateBtcFee(address, amountBtc, btcChain = BITCOIN_CHAIN) {
+  const utxos = await btcFetch(btcChain, `/address/${address}/utxo`)
+  const feeRate = await getBtcFeeRate(btcChain)
   // rough vbytes for 1-2 inputs, 2 outputs, native segwit
   const estVbytes = utxos.length * 68 + 2 * 31 + 11
   const feeSats = Math.ceil(estVbytes * feeRate)
   return { feeSats, feeBtc: feeSats / 1e8, feeRate, utxos }
 }
 
-export async function sendBtcTransaction(privateKeyWIF, fromAddress, toAddress, amountBtc) {
-  const keyPair = ECPair.fromWIF(privateKeyWIF, bitcoin.networks.bitcoin)
-  const utxos = await btcFetch(`/address/${fromAddress}/utxo`)
+export async function sendBtcTransaction(privateKeyWIF, fromAddress, toAddress, amountBtc, btcChain = BITCOIN_CHAIN) {
+  const network = btcNetworkFor(btcChain)
+  const keyPair = ECPair.fromWIF(privateKeyWIF, network)
+  const utxos = await btcFetch(btcChain, `/address/${fromAddress}/utxo`)
   if (!utxos.length) throw new Error('Нет доступных UTXO (пустой баланс)')
 
-  const feeRate = await getBtcFeeRate()
+  const feeRate = await getBtcFeeRate(btcChain)
   const amountSats = Math.round(amountBtc * 1e8)
 
   const { address: p2wpkhAddress, output } = bitcoin.payments.p2wpkh({
     pubkey: Buffer.from(keyPair.publicKey),
-    network: bitcoin.networks.bitcoin,
+    network,
   })
 
-  const psbt = new bitcoin.Psbt({ network: bitcoin.networks.bitcoin })
+  const psbt = new bitcoin.Psbt({ network })
   let inputSum = 0
   const sorted = [...utxos].sort((a, b) => b.value - a.value)
   const selected = []
@@ -176,7 +185,7 @@ export async function sendBtcTransaction(privateKeyWIF, fromAddress, toAddress, 
   psbt.finalizeAllInputs()
 
   const txHex = psbt.extractTransaction().toHex()
-  const res = await fetch(`${BITCOIN_CHAIN.apiBase}/tx`, {
+  const res = await fetch(`${btcChain.apiBase}/tx`, {
     method: 'POST',
     body: txHex,
   })
@@ -191,8 +200,9 @@ export async function sendBtcTransaction(privateKeyWIF, fromAddress, toAddress, 
 
 export function deriveAllAccounts(mnemonic) {
   const evm = deriveEvmAccount(mnemonic)
-  const btc = deriveBtcAccount(mnemonic)
-  return { evm, btc }
+  const btc = deriveBtcAccount(mnemonic, BITCOIN_CHAIN)
+  const btcTestnet = deriveBtcAccount(mnemonic, BITCOIN_TESTNET_CHAIN)
+  return { evm, btc, btcTestnet }
 }
 
 export { EVM_CHAINS, BITCOIN_CHAIN }

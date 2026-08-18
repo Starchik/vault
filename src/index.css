@@ -605,6 +605,17 @@ p.sub {
   outline: none;
 }
 
+.testnet-banner {
+  background: rgba(201, 162, 39, 0.1);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  color: var(--brass-hi);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
 .toggle-row {
   display: flex;
   align-items: center;

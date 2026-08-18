@@ -6,7 +6,16 @@ import {
   removeBiometric,
 } from '../lib/biometric'
 
-export default function SettingsSheet({ mnemonic, password, onClose, onLock, onDeleteVault, showToast }) {
+export default function SettingsSheet({
+  mnemonic,
+  password,
+  onClose,
+  onLock,
+  onDeleteVault,
+  showToast,
+  testnet,
+  onToggleTestnet,
+}) {
   const [revealed, setRevealed] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [bioSupported, setBioSupported] = useState(false)
@@ -65,6 +74,22 @@ export default function SettingsSheet({ mnemonic, password, onClose, onLock, onD
               </div>
             </div>
           )}
+
+          <div className="card" style={{ padding: 14 }}>
+            <div className="toggle-row">
+              <div>
+                <div className="name">Тестовая сеть</div>
+                <div className="hint">Бесплатные тестовые монеты — безопасно для проверки переводов</div>
+              </div>
+              <button
+                className={testnet ? 'btn btn-secondary' : 'btn btn-primary'}
+                style={{ width: 'auto' }}
+                onClick={() => onToggleTestnet(!testnet)}
+              >
+                {testnet ? 'Выключить' : 'Включить'}
+              </button>
+            </div>
+          </div>
 
           {!revealed ? (
             <button className="btn btn-secondary" onClick={() => setRevealed(true)}>

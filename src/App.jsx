@@ -9,7 +9,7 @@ import BuyView from './components/BuyView'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import { encryptSecret, decryptSecret } from './lib/crypto'
-import { hasVault, saveVault, loadVault, clearVault, loadCustomTokens } from './lib/storage'
+import { hasVault, saveVault, loadVault, clearVault, loadCustomTokens, isTestnetMode, setTestnetMode } from './lib/storage'
 import { deriveAllAccounts } from './lib/walletCore'
 import { unlockWithBiometric, isBiometricEnrolled, removeBiometric } from './lib/biometric'
 
@@ -24,6 +24,12 @@ export default function App() {
   const toastTimer = useRef(null)
   const [tab, setTab] = useState('wallet')
   const [customTokens, setCustomTokens] = useState(() => loadCustomTokens())
+  const [testnet, setTestnet] = useState(() => isTestnetMode())
+
+  function handleToggleTestnet(on) {
+    setTestnetMode(on)
+    setTestnet(on)
+  }
 
   function showToast(message, type = '') {
     setToast({ message, type })
@@ -161,15 +167,17 @@ export default function App() {
             showToast={showToast}
             customTokens={customTokens}
             setCustomTokens={setCustomTokens}
+            testnet={testnet}
+            onToggleTestnet={handleToggleTestnet}
           />
         )}
 
         {screen === 'dashboard' && session && tab === 'swap' && (
-          <SwapView accounts={session.accounts} customTokens={customTokens} showToast={showToast} />
+          <SwapView accounts={session.accounts} customTokens={customTokens} showToast={showToast} testnet={testnet} />
         )}
 
         {screen === 'dashboard' && session && tab === 'buy' && (
-          <BuyView accounts={session.accounts} />
+          <BuyView accounts={session.accounts} testnet={testnet} />
         )}
       </div>
 

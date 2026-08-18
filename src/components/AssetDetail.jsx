@@ -72,6 +72,18 @@ export default function AssetDetail({
         </button>
       </div>
 
+      {asset.chain.faucet && (
+        <a
+          className="link center"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}
+          href={asset.chain.faucet}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Получить бесплатные тестовые монеты <ExternalLink size={13} />
+        </a>
+      )}
+
       <div className="card" style={{ padding: 16 }}>
         <div className="field" style={{ gap: 4 }}>
           <label>Ваш адрес</label>

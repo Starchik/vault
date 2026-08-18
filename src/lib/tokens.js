@@ -75,7 +75,7 @@ export async function estimateTokenTransferFee(chain, tokenAddress, fromAddress,
   ])
   const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice ?? 0n
   const feeWei = gasPrice * gasLimit
-  return { feeEth: ethers.formatEther(feeWei) }
+  return { feeEth: Number(ethers.formatEther(feeWei)) }
 }
 
 export async function sendTokenTransaction(chain, privateKey, tokenAddress, toAddress, amount, decimals) {

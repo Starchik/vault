@@ -97,6 +97,45 @@ export const BITCOIN_CHAIN = {
 
 export const ALL_CHAINS = [...EVM_CHAINS, BITCOIN_CHAIN]
 
+// --- Testnets: free faucet coins, zero real value. Use these for testing
+// sends/receives instead of any "well-known" mock seed phrase — a public
+// mnemonic on mainnet is unsafe (anyone can sweep funds sent to it).
+
+export const TESTNET_EVM_CHAINS = [
+  {
+    id: 'sepolia',
+    name: 'Ethereum Sepolia',
+    symbol: 'ETH',
+    chainId: 11155111,
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
+    explorer: 'https://sepolia.etherscan.io',
+    color: '#627EEA',
+    faucet: 'https://sepoliafaucet.com',
+  },
+  {
+    id: 'bsc-testnet',
+    name: 'BNB Testnet',
+    symbol: 'tBNB',
+    chainId: 97,
+    rpcUrl: 'https://bsc-testnet-rpc.publicnode.com',
+    explorer: 'https://testnet.bscscan.com',
+    color: '#F0B90B',
+    faucet: 'https://testnet.bnbchain.org/faucet-smart',
+  },
+]
+
+export const BITCOIN_TESTNET_CHAIN = {
+  id: 'bitcoin-testnet',
+  name: 'Bitcoin Testnet',
+  symbol: 'tBTC',
+  explorer: 'https://blockstream.info/testnet',
+  apiBase: 'https://blockstream.info/testnet/api',
+  color: '#F7931A',
+  faucet: 'https://coinfaucet.eu/en/btc-testnet/',
+}
+
+export const ALL_TESTNET_CHAINS = [...TESTNET_EVM_CHAINS, BITCOIN_TESTNET_CHAIN]
+
 export function findChain(id) {
   return ALL_CHAINS.find((c) => c.id === id)
 }
