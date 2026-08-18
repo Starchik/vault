@@ -9,10 +9,21 @@ const BUY_ASSETS = [
   { symbol: BITCOIN_CHAIN.symbol, chainId: BITCOIN_CHAIN.id, name: BITCOIN_CHAIN.name, color: BITCOIN_CHAIN.color },
 ]
 
-// General homepages only — no API keys, no partner integration, no signup
-// on our side. The user buys as an ordinary customer of the exchange and
-// then sends the crypto to their own address, same as a transfer from any
-// other wallet.
+// General homepages / public buy pages only — no API keys, no partner
+// integration, no signup on our side. The user buys as an ordinary customer
+// and then sends (or manually enters) the crypto to their own address, same
+// as a transfer from any other wallet.
+//
+// The "card" group are direct-purchase consumer sites (MoonPay, Transak's
+// own site) — usually no persistent account needed, just a card and the
+// address you paste in yourself. The "exchange" group needs a regular
+// trading-account signup first, but tends to have lower fees for larger
+// amounts.
+const CARD_ONRAMPS = [
+  { name: 'MoonPay', url: 'https://www.moonpay.com/buy' },
+  { name: 'Transak', url: 'https://transak.com' },
+]
+
 const EXCHANGES = [
   { name: 'Binance', url: 'https://www.binance.com' },
   { name: 'Coinbase', url: 'https://www.coinbase.com' },
@@ -90,8 +101,8 @@ export default function BuyView({ accounts, testnet, showToast }) {
 
       <div className="card" style={{ padding: 18, marginTop: 4 }}>
         <p className="sub" style={{ margin: '0 0 12px' }}>
-          Купите {selected.symbol} на любой бирже как обычный клиент, затем выведите на адрес
-          ниже. Это обычный перевод, без какого-либо партнёрства с нашей стороны.
+          Купите {selected.symbol} где угодно и выведите на адрес ниже. Это обычный перевод,
+          без какого-либо партнёрства с нашей стороны — скопируйте адрес перед покупкой.
         </p>
 
         {qr && (
@@ -105,7 +116,30 @@ export default function BuyView({ accounts, testnet, showToast }) {
         </div>
       </div>
 
-      <div className="section-label">Купить на бирже</div>
+      <div className="section-label">Быстрая покупка картой (без аккаунта)</div>
+      <div className="ledger card" style={{ padding: 8 }}>
+        {CARD_ONRAMPS.map((ex) => (
+          <a
+            key={ex.name}
+            className="ledger-row"
+            href={ex.url}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: 'none' }}
+          >
+            <div className="chip" style={{ background: 'var(--ink-700)', color: 'var(--brass-hi)' }}>
+              {ex.name.slice(0, 1)}
+            </div>
+            <div className="ledger-info">
+              <div className="name">{ex.name}</div>
+              <div className="addr">Введёте адрес вручную на их сайте</div>
+            </div>
+            <ExternalLink size={15} style={{ color: 'var(--text-low)' }} />
+          </a>
+        ))}
+      </div>
+
+      <div className="section-label">Если уже есть аккаунт на бирже</div>
       <div className="ledger card" style={{ padding: 8 }}>
         {EXCHANGES.map((ex) => (
           <a
@@ -132,7 +166,7 @@ export default function BuyView({ accounts, testnet, showToast }) {
         style={{ margin: '10px auto 0', display: 'flex', alignItems: 'center', gap: 6 }}
         onClick={() => setAdvancedOpen((v) => !v)}
       >
-        Покупка в один тап (нужна ваша регистрация у провайдера)
+        С автоматической доставкой на адрес (нужна ваша регистрация у провайдера)
         {advancedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
 
