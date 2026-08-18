@@ -177,7 +177,7 @@ export default function App() {
         )}
 
         {screen === 'dashboard' && session && tab === 'buy' && (
-          <BuyView accounts={session.accounts} testnet={testnet} />
+          <BuyView accounts={session.accounts} testnet={testnet} showToast={showToast} />
         )}
       </div>
 

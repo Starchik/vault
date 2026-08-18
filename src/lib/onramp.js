@@ -3,13 +3,29 @@
 // module builds the widget URL for whichever provider the user configures;
 // without a key, the Buy screen shows sign-up instructions instead of a
 // broken/fake purchase flow.
+//
+// A note on "Signature check failed" (MoonPay): some MoonPay accounts have
+// mandatory URL signing enabled — the widget URL must carry an HMAC-SHA256
+// signature made with your SECRET key. That key must never appear in
+// client-side code (anyone viewing the page could read it and forge
+// requests), so a purely static site like this one cannot satisfy that
+// requirement without adding a small backend to do the signing server-side.
+// Transak's widget, by contrast, works with just the public API key — no
+// signing — which is why it's the default here.
 
 export const ONRAMP_CONFIG = {
-  // Get a free publishable key at https://dashboard.moonpay.com (sign up as
-  // a business — no cost to obtain the key itself). Paste it below.
-  moonpayApiKey: 'pk_test_R9RmT7XjlnYD6i6pEIymACLJVMf74yq8',
-  // Or use Transak instead: https://dashboard.transak.com
+  // Get a free "Staging" API key at https://dashboard.transak.com — no
+  // business verification needed to test with it. Paste it below.
   transakApiKey: '',
+  // Set to false once you switch to a "Production" key (requires Transak's
+  // business verification, same as any licensed on-ramp).
+  transakStaging: true,
+
+  // Optional: MoonPay as a second option. Only usable if your MoonPay
+  // account has signed URLs turned OFF (Dashboard → Developers → API keys —
+  // some accounts have a toggle there; if there is none, MoonPay requires
+  // server-side signing and can't be used from a static site alone).
+  moonpayApiKey: 'pk_test_R9RmT7XjlnYD6i6pEIymACLJVMf74yq8',
 }
 
 const MOONPAY_CURRENCY_MAP = {
@@ -34,7 +50,11 @@ const TRANSAK_NETWORK_MAP = {
 }
 
 export function isOnrampConfigured() {
-  return !!(ONRAMP_CONFIG.moonpayApiKey || ONRAMP_CONFIG.transakApiKey)
+  return !!(ONRAMP_CONFIG.transakApiKey || ONRAMP_CONFIG.moonpayApiKey)
+}
+
+export function activeProvider() {
+  return ONRAMP_CONFIG.transakApiKey ? 'transak' : ONRAMP_CONFIG.moonpayApiKey ? 'moonpay' : null
 }
 
 export function buildMoonpayUrl({ symbol, walletAddress }) {
@@ -51,6 +71,9 @@ export function buildMoonpayUrl({ symbol, walletAddress }) {
 }
 
 export function buildTransakUrl({ symbol, chainId, walletAddress }) {
+  const base = ONRAMP_CONFIG.transakStaging
+    ? 'https://staging-global.transak.com'
+    : 'https://global.transak.com'
   const params = new URLSearchParams({
     apiKey: ONRAMP_CONFIG.transakApiKey,
     defaultCryptoCurrency: symbol,
@@ -58,5 +81,5 @@ export function buildTransakUrl({ symbol, chainId, walletAddress }) {
     walletAddress,
     themeColor: 'c9a227',
   })
-  return `https://global.transak.com?${params.toString()}`
+  return `${base}?${params.toString()}`
 }
